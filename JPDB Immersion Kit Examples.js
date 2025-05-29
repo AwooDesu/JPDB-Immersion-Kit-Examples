@@ -1176,33 +1176,49 @@
     }
 
     function createImageElement(wrapperDiv, imageUrl, vocab, exactSearch) {
+        // Create and return an image element with specified attributes
+        const searchVocab = exactSearch ? `「${vocab}」` : vocab;
+        const example = state.examples[state.currentExampleIndex] || {};
+        const title = example.title || null;
+    
+        // Extract the file name from the URL
+        let file_name = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+    
+        // Remove prefixes "Anime_", "A_", or "Z" from the file name
+        file_name = file_name.replace(/^(Anime_|A_|Z)/, '');
+    
+        const titleText = `${searchVocab} #${state.currentExampleIndex + 1} \n${title} \n${file_name}`;
+    
         const img = document.createElement('img');
-        img.src = imageUrl;
         img.alt = 'Embedded Image';
-        img.title = `${vocab}`;
+        img.title = titleText;
         img.style = `max-width: ${CONFIG.IMAGE_WIDTH}; margin-top: 10px; cursor: pointer;`;
     
-        img.onerror = function() {
-            if (typeof GM_xmlhttpRequest === 'function') {
-                GM_xmlhttpRequest({
-                    method: 'GET',
-                    url: imageUrl,
-                    responseType: 'blob',
-                    onload: function(response) {
-                        if (response.status === 200 && response.response) {
-                            const reader = new FileReader();
-                            reader.onloadend = function() {
-                                img.src = reader.result;
-                                img.style.display = '';
-                            };
-                            reader.readAsDataURL(response.response);
-                        }
-                    }
-                });
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: imageUrl,
+            responseType: 'blob',
+            onload: function(response) {
+                if (response.status === 200 && response.response) {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        img.src = reader.result;
+                        wrapperDiv.appendChild(img);
+                    };
+                    reader.onerror = function() {
+                        console.error('FileReader failed for', imageUrl);
+                        // Optionally, append a placeholder here if you wish
+                    };
+                    reader.readAsDataURL(response.response);
+                }
+            },
+            onerror: function() {
+                console.error('GM_xmlhttpRequest error for', imageUrl);
+                // Optionally, append a placeholder here if you wish
             }
-        };
+        });
     
-        wrapperDiv.appendChild(img);
+        // Don't append img here; only after it is ready
         return img;
     }
 
