@@ -1175,25 +1175,53 @@
         return wrapperDiv;
     }
 
+   
     function createImageElement(wrapperDiv, imageUrl, vocab, exactSearch) {
-        // Create and return an image element with specified attributes
+        // --- Title/comment logic for tooltip ---
         const searchVocab = exactSearch ? `「${vocab}」` : vocab;
         const example = state.examples[state.currentExampleIndex] || {};
-        const title = example.title || null;
+        const title = example.title || '';
+        let file_name = imageUrl.substring(imageUrl.lastIndexOf('/') + 1).replace(/^(Anime_|A_|Z)/, '');
+        const titleText = `${searchVocab} #${state.currentExampleIndex + 1}\n${title}\n${file_name}`;
     
-        // Extract the file name from the URL
-        let file_name = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+        // --- Calculate width and 16:9 height from config ---
+        const width = parseInt(CONFIG.IMAGE_WIDTH, 10);
+        const height = Math.round(width * 9 / 16);
     
-        // Remove prefixes "Anime_", "A_", or "Z" from the file name
-        file_name = file_name.replace(/^(Anime_|A_|Z)/, '');
+        // --- Outer container ---
+        const imgContainer = document.createElement('div');
+        imgContainer.style = `width:${width}px;max-width:${width}px;margin:10px auto 0;position:relative;`;
     
-        const titleText = `${searchVocab} #${state.currentExampleIndex + 1} \n${title} \n${file_name}`;
+        // --- 16:9 SVG shimmer placeholder ---
+        const placeholder = document.createElement('div');
+        placeholder.style = `width:100%;aspect-ratio:16/9;background:#eee;border-radius:4px;display:block;`;
+        placeholder.innerHTML =
+            `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid slice">
+                <defs><linearGradient id="shimmer" x1="0" x2="1">
+                <stop offset="0%" stop-color="#eee"/><stop offset="50%" stop-color="#ddd"/><stop offset="100%" stop-color="#eee"/>
+                </linearGradient></defs>
+                <rect width="${width}" height="${height}" fill="url(#shimmer)"/>
+            </svg>`;
     
+        // --- Hidden image until loaded ---
         const img = document.createElement('img');
         img.alt = 'Embedded Image';
         img.title = titleText;
-        img.style = `max-width: ${CONFIG.IMAGE_WIDTH}; margin-top: 10px; cursor: pointer;`;
+        img.style = `width:100%;max-width:${width}px;margin-top:10px;cursor:pointer;display:none;border-radius:4px;height:auto;`;
     
+        // --- Error fallback, also 16:9 ---
+        const errorFallback = document.createElement('div');
+        errorFallback.style = `display:none;width:100%;aspect-ratio:16/9;`;
+        errorFallback.innerHTML =
+            `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+                <rect width="${width}" height="${height}" fill="#f8d7da"/>
+                <text x="50%" y="50%" text-anchor="middle" fill="#721c24" dy=".3em" font-size="18">Image failed to load</text>
+            </svg>`;
+    
+        imgContainer.append(placeholder, img, errorFallback);
+        wrapperDiv.appendChild(imgContainer);
+    
+        // --- Load image as blob, swap in when ready ---
         GM_xmlhttpRequest({
             method: 'GET',
             url: imageUrl,
@@ -1203,22 +1231,22 @@
                     const reader = new FileReader();
                     reader.onloadend = function() {
                         img.src = reader.result;
-                        wrapperDiv.appendChild(img);
-                    };
-                    reader.onerror = function() {
-                        console.error('FileReader failed for', imageUrl);
-                        // Optionally, append a placeholder here if you wish
+                        img.onload = () => { placeholder.style.display = 'none'; errorFallback.style.display = 'none'; img.style.display = 'block'; };
+                        img.onerror = () => { placeholder.style.display = 'none'; img.style.display = 'none'; errorFallback.style.display = 'block'; };
                     };
                     reader.readAsDataURL(response.response);
+                } else {
+                    placeholder.style.display = 'none';
+                    errorFallback.style.display = 'block';
                 }
             },
             onerror: function() {
+                placeholder.style.display = 'none';
+                errorFallback.style.display = 'block';
                 console.error('GM_xmlhttpRequest error for', imageUrl);
-                // Optionally, append a placeholder here if you wish
             }
         });
     
-        // Don't append img here; only after it is ready
         return img;
     }
 
