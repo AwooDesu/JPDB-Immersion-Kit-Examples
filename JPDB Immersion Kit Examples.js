@@ -1176,25 +1176,34 @@
     }
 
     function createImageElement(wrapperDiv, imageUrl, vocab, exactSearch) {
-        // Create and return an image element with specified attributes
-        const searchVocab = exactSearch ? `「${vocab}」` : vocab;
-        const example = state.examples[state.currentExampleIndex] || {};
-        const title = example.title || null;
-
-        // Extract the file name from the URL
-        let file_name = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-
-        // Remove prefixes "Anime_", "A_", or "Z" from the file name
-        file_name = file_name.replace(/^(Anime_|A_|Z)/, '');
-
-        const titleText = `${searchVocab} #${state.currentExampleIndex + 1} \n${title} \n${file_name}`;
-
-        return GM_addElement(wrapperDiv, 'img', {
-            src: imageUrl,
-            alt: 'Embedded Image',
-            title: titleText,
-            style: `max-width: ${CONFIG.IMAGE_WIDTH}; margin-top: 10px; cursor: pointer;`
-        });
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = 'Embedded Image';
+        img.title = `${vocab}`;
+        img.style = `max-width: ${CONFIG.IMAGE_WIDTH}; margin-top: 10px; cursor: pointer;`;
+    
+        img.onerror = function() {
+            if (typeof GM_xmlhttpRequest === 'function') {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: imageUrl,
+                    responseType: 'blob',
+                    onload: function(response) {
+                        if (response.status === 200 && response.response) {
+                            const reader = new FileReader();
+                            reader.onloadend = function() {
+                                img.src = reader.result;
+                                img.style.display = '';
+                            };
+                            reader.readAsDataURL(response.response);
+                        }
+                    }
+                });
+            }
+        };
+    
+        wrapperDiv.appendChild(img);
+        return img;
     }
 
     function highlightVocab(sentence, vocab) {
