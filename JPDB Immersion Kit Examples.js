@@ -2315,7 +2315,8 @@
 
         // Retrieve stored data for the current vocabulary
         const { index, exactState } = getStoredData(state.vocab);
-        state.currentExampleIndex = index;
+        state.currentExampleIndex = index > 0 ? index : Math.max(0, state.examples.findIndex(e => e.sentence && e.sentence.length >= CONFIG.MINIMUM_EXAMPLE_LENGTH));
+
         state.exactSearch = exactState;
 
         // Fetch data and embed image/audio if necessary
