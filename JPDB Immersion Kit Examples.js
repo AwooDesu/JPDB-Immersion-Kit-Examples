@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         JPDB Immersion Kit Examples
-// @version      1.24.1
+// @version      1.25
 // @description  Embeds anime images & audio examples into JPDB review and vocabulary pages using Immersion Kit's API.
 // @author       awoo
 // @namespace    jpdb-immersion-kit-examples
@@ -1059,8 +1059,8 @@
 
     function renderImageAndPlayAudio(vocab, shouldAutoPlaySound) {
         const example = state.examples[state.currentExampleIndex] || {};
-        const imageUrl = example.image ? `https://us-southeast-1.linodeobjects.com/immersionkit/media/${example.media}/${example.title}/media/${example.image}` : null;
-        const soundUrl = example.sound ? `https://us-southeast-1.linodeobjects.com/immersionkit/media/${example.media}/${example.title}/media/${example.sound}` : null;
+        const imageUrl = example.image ? encodeURI(`https://immersionkit.s3.bhs.io.cloud.ovh.net/media/${example.media}/${example.title}/media/${example.image}`) : null;
+        const soundUrl = example.sound ? encodeURI(`https://immersionkit.s3.bhs.io.cloud.ovh.net/media/${example.media}/${example.title}/media/${example.sound}`) : null;
         const sentence = example.sentence || null;
         const translation = example.translation || null;
         const title = example.title || null;
@@ -1196,7 +1196,7 @@
         for (let i = startIndex; i <= endIndex; i++) {
             if (!state.preloadedIndices.has(i) && state.examples[i].image) {
                 const example = state.examples[i];
-                const imageUrl = `https://us-southeast-1.linodeobjects.com/immersionkit/media/${example.media}/${example.title}/media/${example.image}`;
+                const imageUrl = encodeURI(`https://immersionkit.s3.bhs.io.cloud.ovh.net/media/${example.media}/${example.title}/media/${example.image}`);
                 if (isIOS()) {
                     GM_xmlhttpRequest({
                         method: 'GET',
