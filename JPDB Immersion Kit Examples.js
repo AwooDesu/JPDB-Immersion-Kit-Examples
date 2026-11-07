@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JPDB Immersion Kit Examples
-// @version      1.24
-// @description  Embeds anime images & audio examples into JPDB review and vocabulary pages using Immersion Kit's API. 
+// @version      1.24.1
+// @description  Embeds anime images & audio examples into JPDB review and vocabulary pages using Immersion Kit's API.
 // @author       awoo
 // @namespace    jpdb-immersion-kit-examples
 // @match        https://jpdb.io/review*
@@ -12,6 +12,9 @@
 // @connect      linodeobjects.com
 // @grant        GM_addElement
 // @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
 // @license      MIT
 // @downloadURL  https://update.greasyfork.org/scripts/507408/JPDB%20Immersion%20Kit%20Examples.user.js
 // @updateURL    https://update.greasyfork.org/scripts/507408/JPDB%20Immersion%20Kit%20Examples.meta.js
@@ -69,10 +72,18 @@
     const configPrefix = 'CONFIG.'; // additional prefix for config variables to go after the scriptPrefix
     // do not change either of the above without adding code to handle the change
 
-    const setItem = (key, value) => { localStorage.setItem(scriptPrefix + key, value) }
+    // Minimal GM-backed storage helpers: localStorage primary, GM as backing store (persists after browser cache clear)
+    const setItem = (key, value) => {
+        localStorage.setItem(scriptPrefix + key, value);
+        if (typeof GM_setValue === 'function') GM_setValue(scriptPrefix + key, String(value));
+    }
     const getItem = (key) => {
         const prefixedValue = localStorage.getItem(scriptPrefix + key);
         if (prefixedValue !== null) { return prefixedValue }
+        if (typeof GM_getValue === 'function') {
+            const gmValue = GM_getValue(scriptPrefix + key);
+            if (gmValue !== undefined) return gmValue;
+        }
         const nonPrefixedValue = localStorage.getItem(key);
         // to move away from non-prefixed values as fast as possible
         if (nonPrefixedValue !== null) { setItem(key, nonPrefixedValue) }
@@ -81,6 +92,7 @@
     const removeItem = (key) => {
         localStorage.removeItem(scriptPrefix + key);
         localStorage.removeItem(key)
+        if (typeof GM_deleteValue === 'function') GM_deleteValue(scriptPrefix + key);
     }
 
     // Helper for transitioning to fully script-prefixed config state
@@ -706,23 +718,17 @@
     }
 
     function parseVocabFromKanji() {
-        // Get the current URL
-        const url = window.location.href;
-
-        // Match the URL structure for a kanji page
-        const match = url.match(/https:\/\/jpdb\.io\/kanji\/(\d+)\/([^\#]*)#a/);
         console.log("Parsing Kanji Page");
 
-        if (match) {
-            // Extract and decode the kanji part from the URL
-            let kanji = match[2];
-            state.embedAboveSubsectionMeanings = true; // Set state flag
-            kanji = kanji.split('/')[0];
-            return decodeURIComponent(kanji);
-        }
+        // Use the path, not the full URL. Works for:
+        // /kanji/一, /kanji/%E4%B8%80, /kanji/12345/一
+        const parts = window.location.pathname.split('/').filter(Boolean); // ['kanji','一'] or ['kanji','12345','一']
+        if (parts[0] !== 'kanji') return '';
 
-        // Return empty string if no match
-        return '';
+        // last segment is the kanji itself
+        let kanji = decodeURIComponent(parts[parts.length - 1]);
+        state.embedAboveSubsectionMeanings = true; // Set state flag
+        return kanji;
     }
 
     function parseVocabFromSearch() {
@@ -2293,11 +2299,7 @@
 
         // Proceed only if the machine translation frame is not present
         if (!machineTranslationFrame) {
-
-            //display embed for first time with loading text
-            embedImageAndPlayAudio();
-            setPageWidth();
-
+            // Determine vocab FIRST before rendering
             if (url.includes('/vocabulary/')) {
                 state.vocab = parseVocabFromVocabulary();
             } else if (url.includes('/search?q=')) {
@@ -2309,6 +2311,10 @@
             } else {
                 state.vocab = parseVocabFromReview();
             }
+
+            //display embed for first time with loading text
+            setPageWidth();
+            embedImageAndPlayAudio();
         } else {
             console.log('Machine translation frame detected, skipping vocabulary parsing.');
         }
