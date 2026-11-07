@@ -10,6 +10,7 @@
 // @match        https://jpdb.io/search*
 // @connect      immersionkit.com
 // @connect      linodeobjects.com
+// @connect      immersionkit.s3.bhs.io.cloud.ovh.net
 // @grant        GM_addElement
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
